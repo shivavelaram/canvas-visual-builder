@@ -178,3 +178,68 @@ export interface AuditRecord {
   created_at: string;
   reviewed_by?: string;
 }
+
+// -------------------------------------------------------------
+// Multi-Website, Webpage & Persistence Types
+// -------------------------------------------------------------
+
+export interface Webpage {
+  id: string;
+  websiteId: string;
+  title: string;
+  slug: string; // e.g. "home", "pricing", "about", "features", "contact"
+  description?: string;
+  nodes: CanvasNode[];
+  updatedAt: string;
+  isPublished?: boolean;
+}
+
+export interface Website {
+  id: string;
+  name: string;
+  domain: string;
+  description: string;
+  category: 'saas' | 'portfolio' | 'ecommerce' | 'documentation';
+  pages: Webpage[];
+  activePageId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'editor' | 'viewer';
+  avatarUrl?: string;
+  token?: string;
+}
+
+export interface OneDriveConfig {
+  isConnected: boolean;
+  userEmail?: string;
+  folderPath: string; // e.g. "/Apps/CanvasStudio/data/"
+  sqliteFileName: string; // e.g. "canvas_store.sqlite"
+  lastSyncedAt?: string;
+  syncStatus: 'idle' | 'syncing' | 'synced' | 'error';
+  autoSync: boolean;
+  clientId?: string;
+  tenantId?: string;
+  accessToken?: string;
+  dbSizeBytes?: number;
+}
+
+export interface GraphQLConfig {
+  endpoint: string;
+  schemaDefinition: string;
+  activeQueries: number;
+  lastTestedAt?: string;
+}
+
+export interface WebBundleExportOptions {
+  includeSQLite: boolean;
+  includeGraphQLServer: boolean;
+  port: number;
+  targetEnv: 'nodejs_standalone' | 'docker' | 'static_only';
+}
+

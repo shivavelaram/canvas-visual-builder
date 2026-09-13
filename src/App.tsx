@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Tenant,
   Workspace,
@@ -13,6 +13,10 @@ import {
   AuditRecord,
   AIJob,
   DataBinding,
+  Website,
+  Webpage,
+  AuthUser,
+  OneDriveConfig,
 } from './types/canvas';
 import {
   INITIAL_TENANTS,
@@ -25,6 +29,8 @@ import {
   INITIAL_PAGE_VERSIONS,
   INITIAL_AUDIT_LOGS,
 } from './data/initialState';
+import { INITIAL_WEBSITES } from './data/initialWebsites';
+import { INITIAL_ONEDRIVE_CONFIG, syncSQLiteToOneDrive } from './services/sqliteOneDriveBridge';
 import { safeExtractPath, runTransform } from './services/transformEngine';
 import { TopNavBar, ActiveTab, CanvasMode } from './components/header/TopNavBar';
 import { CanvasEditor } from './components/editor/CanvasEditor';
@@ -37,6 +43,10 @@ import { AIAssistantModal } from './components/ai/AIAssistantModal';
 import { ReleaseManager } from './components/publishing/ReleaseManager';
 import { AuditLogViewer } from './components/audit/AuditLogViewer';
 import { LivePagePreview } from './components/preview/LivePagePreview';
+import { LoginModal } from './components/auth/LoginModal';
+import { WebBundleExportModal } from './components/bundle/WebBundleExportModal';
+import { OneDriveSyncModal } from './components/onedrive/OneDriveSyncModal';
+import { GraphQLBridgeModal } from './components/graphql/GraphQLBridgeModal';
 
 export default function App() {
   // Tenancy & Context
@@ -59,17 +69,79 @@ export default function App() {
   const [pageVersions, setPageVersions] = useState<PageVersion[]>(INITIAL_PAGE_VERSIONS);
   const [auditLogs, setAuditLogs] = useState<AuditRecord[]>(INITIAL_AUDIT_LOGS);
 
-  // Active Draft Canvas Tree
-  const [draftNodes, setDraftNodes] = useState<CanvasNode[]>(INITIAL_CANVAS_NODES);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>('node-hero-1');
+  // Multi-Website & Multi-Page Management
+  const [websites, setWebsites] = useState<Website[]>(() => {
+    const saved = localStorage.getItem('canvas_builder_websites');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse saved websites', e);
+      }
+    }
+    return INITIAL_WEBSITES;
+  });
+  const [activeWebsiteId, setActiveWebsiteId] = useState<string>(INITIAL_WEBSITES[0].id);
+  const [activePageId, setActivePageId] = useState<string>(INITIAL_WEBSITES[0].activePageId);
+
+  // Authentication & Role
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>({
+    id: 'user-admin-1',
+    email: 'admin@apexcloud.io',
+    name: 'Alex Rivera (Admin)',
+    role: 'admin',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+    lastLogin: new Date().toISOString(),
+  });
+
+  // OneDrive & SQLite Store Config
+  const [oneDriveConfig, setOneDriveConfig] = useState<OneDriveConfig>(() => {
+    const saved = localStorage.getItem('canvas_onedrive_config');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return INITIAL_ONEDRIVE_CONFIG;
+  });
+
+  // Active Website & Webpage computed
+  const activeWebsite = useMemo(() => {
+    return websites.find((w) => w.id === activeWebsiteId) || websites[0];
+  }, [websites, activeWebsiteId]);
+
+  const activePage = useMemo(() => {
+    return activeWebsite.pages.find((p) => p.id === activePageId) || activeWebsite.pages[0];
+  }, [activeWebsite, activePageId]);
+
+  // Active Draft Canvas Tree (initialized from active page)
+  const [draftNodes, setDraftNodes] = useState<CanvasNode[]>(activePage.nodes || INITIAL_CANVAS_NODES);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(activePage.nodes?.[0]?.id || 'node-hero-1');
   const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState<boolean>(true);
+  const [hasUnsavedPageChanges, setHasUnsavedPageChanges] = useState<boolean>(false);
+
+  // Modals state
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isWebBundleModalOpen, setIsWebBundleModalOpen] = useState(false);
+  const [isOneDriveModalOpen, setIsOneDriveModalOpen] = useState(false);
+  const [isGraphQLModalOpen, setIsGraphQLModalOpen] = useState(false);
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+
+  // Persist websites state to localStorage
+  useEffect(() => {
+    localStorage.setItem('canvas_builder_websites', JSON.stringify(websites));
+  }, [websites]);
+
+  // Persist OneDrive config
+  useEffect(() => {
+    localStorage.setItem('canvas_onedrive_config', JSON.stringify(oneDriveConfig));
+  }, [oneDriveConfig]);
 
   // Sidebar visibility toggles for expansive SaaS view
   const [isPaletteOpen, setIsPaletteOpen] = useState<boolean>(true);
   const [isInspectorOpen, setIsInspectorOpen] = useState<boolean>(true);
-
-  // AI Assistant Modal
-  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
 
   // Append to Audit Trail helper
   const recordAudit = useCallback(
@@ -352,7 +424,114 @@ export default function App() {
       return updateRecursive(prev);
     });
     setHasUnpublishedChanges(true);
+    setHasUnsavedPageChanges(true);
     recordAudit('user', 'binding.remove', 'component', nodeId, `Unbound prop "${propKey}".`);
+  };
+
+  // Multi-Website and Webpage Management Handlers
+  const handleSelectWebsite = (siteId: string) => {
+    const site = websites.find((w) => w.id === siteId);
+    if (!site) return;
+    setActiveWebsiteId(siteId);
+    const targetPage = site.pages[0];
+    if (targetPage) {
+      setActivePageId(targetPage.id);
+      setDraftNodes(targetPage.nodes || []);
+      setSelectedNodeId(targetPage.nodes?.[0]?.id || null);
+    }
+    setHasUnsavedPageChanges(false);
+    recordAudit('user', 'website.switch', 'page', siteId, `Switched to website "${site.name}".`);
+  };
+
+  const handleSelectPage = (pageId: string) => {
+    const page = activeWebsite.pages.find((p) => p.id === pageId);
+    if (!page) return;
+    setActivePageId(pageId);
+    setDraftNodes(page.nodes || []);
+    setSelectedNodeId(page.nodes?.[0]?.id || null);
+    setHasUnsavedPageChanges(false);
+    recordAudit('user', 'page.switch', 'page', pageId, `Switched to webpage "/${page.slug}" (${page.title}).`);
+  };
+
+  const handleCreateWebsite = (newSite: Website) => {
+    setWebsites((prev) => [...prev, newSite]);
+    setActiveWebsiteId(newSite.id);
+    const firstPage = newSite.pages[0];
+    if (firstPage) {
+      setActivePageId(firstPage.id);
+      setDraftNodes(firstPage.nodes || []);
+      setSelectedNodeId(firstPage.nodes?.[0]?.id || null);
+    }
+    setHasUnsavedPageChanges(false);
+    recordAudit('user', 'website.create', 'page', newSite.id, `Created new website "${newSite.name}".`);
+  };
+
+  const handleCreatePage = (siteId: string, newPage: Webpage) => {
+    setWebsites((prev) =>
+      prev.map((site) => {
+        if (site.id === siteId) {
+          return {
+            ...site,
+            pages: [...site.pages, newPage],
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return site;
+      })
+    );
+    setActivePageId(newPage.id);
+    setDraftNodes(newPage.nodes || []);
+    setSelectedNodeId(newPage.nodes?.[0]?.id || null);
+    setHasUnsavedPageChanges(false);
+    recordAudit('user', 'page.create', 'page', newPage.id, `Created new webpage "/${newPage.slug}" in "${activeWebsite.name}".`);
+  };
+
+  const handleSaveCurrentPage = async () => {
+    const updatedWebsites = websites.map((site) => {
+      if (site.id === activeWebsiteId) {
+        return {
+          ...site,
+          pages: site.pages.map((p) => {
+            if (p.id === activePageId) {
+              return {
+                ...p,
+                nodes: draftNodes,
+                updatedAt: new Date().toISOString(),
+              };
+            }
+            return p;
+          }),
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return site;
+    });
+
+    setWebsites(updatedWebsites);
+    setHasUnsavedPageChanges(false);
+
+    // Auto-sync with SQLite / OneDrive if enabled
+    if (oneDriveConfig.isConnected && oneDriveConfig.autoSync) {
+      try {
+        const syncResult = await syncSQLiteToOneDrive(oneDriveConfig, updatedWebsites);
+        setOneDriveConfig((prev) => ({
+          ...prev,
+          lastSyncedAt: syncResult.syncedAt,
+          syncStatus: 'synced',
+          dbSizeBytes: syncResult.byteSize,
+        }));
+      } catch (err) {
+        console.error('OneDrive auto-sync error:', err);
+      }
+    }
+
+    recordAudit(
+      'user',
+      'page.save',
+      'page',
+      activePageId,
+      `Saved webpage "${activePage.title}" (${draftNodes.length} sections) to SQLite database & OneDrive store.`
+    );
   };
 
   // AI Proposal Acceptance and Rejection
@@ -502,6 +681,22 @@ export default function App() {
         onPublishClick={() => setActiveTab('releases')}
         hasUnpublishedChanges={hasUnpublishedChanges}
         publishedVersionNumber={currentPublished.version_number}
+
+        currentUser={currentUser}
+        onOpenLoginModal={() => setIsLoginModalOpen(true)}
+        onOpenWebBundleModal={() => setIsWebBundleModalOpen(true)}
+        onOpenOneDriveModal={() => setIsOneDriveModalOpen(true)}
+        onOpenGraphQLModal={() => setIsGraphQLModalOpen(true)}
+        oneDriveConfig={oneDriveConfig}
+        websites={websites}
+        activeWebsiteId={activeWebsiteId}
+        activePageId={activePageId}
+        onSelectWebsite={handleSelectWebsite}
+        onSelectPage={handleSelectPage}
+        onCreateWebsite={handleCreateWebsite}
+        onCreatePage={handleCreatePage}
+        onSaveCurrentPage={handleSaveCurrentPage}
+        hasUnsavedPageChanges={hasUnsavedPageChanges}
       />
 
       {/* Main Module Content Views */}
@@ -642,6 +837,50 @@ export default function App() {
         selectedNodeId={selectedNodeId}
         onAcceptProposal={handleAcceptAIProposal}
         onRejectProposal={handleRejectAIProposal}
+      />
+
+      {/* Authentication & Role Switcher Modal */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        currentUser={currentUser}
+        onClose={() => setIsLoginModalOpen(false)}
+        onLogin={(user) => {
+          setCurrentUser(user);
+          setCurrentUserRole(user.role);
+          recordAudit('user', 'user.login', 'page', user.id, `User signed in as ${user.name} (${user.role}).`);
+        }}
+        onLogout={() => {
+          recordAudit('user', 'user.logout', 'page', currentUser?.id || 'anonymous', 'User logged out.');
+          setCurrentUser(null);
+        }}
+      />
+
+      {/* Export Runnable Node.js Web Bundle Modal */}
+      <WebBundleExportModal
+        isOpen={isWebBundleModalOpen}
+        website={activeWebsite}
+        onClose={() => setIsWebBundleModalOpen(false)}
+      />
+
+      {/* OneDrive & SQLite Dynamic Storage Modal */}
+      <OneDriveSyncModal
+        isOpen={isOneDriveModalOpen}
+        currentUser={currentUser}
+        config={oneDriveConfig}
+        websites={websites}
+        onClose={() => setIsOneDriveModalOpen(false)}
+        onUpdateConfig={(newConfig) => {
+          setOneDriveConfig(newConfig);
+          recordAudit('user', 'onedrive.config', 'page', 'onedrive', 'Updated OneDrive SQLite storage settings.');
+        }}
+        onOpenLogin={() => setIsLoginModalOpen(true)}
+      />
+
+      {/* Interactive GraphQL Bridge Modal */}
+      <GraphQLBridgeModal
+        isOpen={isGraphQLModalOpen}
+        website={activeWebsite}
+        onClose={() => setIsGraphQLModalOpen(false)}
       />
     </div>
   );
