@@ -796,6 +796,13 @@ export default function App() {
     throw new Error('Account not found. Please check your email or use Register Account to create one.');
   };
 
+  const handleLogout = () => {
+    recordAudit('user', 'user.logout', 'page', currentUser?.id || 'anonymous', 'User logged out.');
+    setCurrentUser(null);
+    setIsHomePortalOpen(true);
+    setIsAdminScreenOpen(false);
+  };
+
   // AI Proposal Acceptance and Rejection
   const handleAcceptAIProposal = (job: AIJob) => {
     if (job.proposal.changes.diffNodes) {
@@ -921,7 +928,8 @@ export default function App() {
     recordAudit('system', 'connector.sync', 'connector', connectorId, 'Ingested live snapshot from data connector.');
   };
 
-  if (isHomePortalOpen) {
+  // Home Page is shown if isHomePortalOpen is true OR if the user is not authenticated yet
+  if (isHomePortalOpen || !currentUser) {
     return (
       <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased flex flex-col">
         <MainHomePage
@@ -930,10 +938,16 @@ export default function App() {
           websites={websites}
           onLogin={handleVerifyLogin}
           onRegister={handleRegisterUser}
-          onEnterStudio={() => setIsHomePortalOpen(false)}
+          onEnterStudio={() => {
+            if (currentUser) {
+              setIsHomePortalOpen(false);
+            }
+          }}
           onOpenUserManagement={() => {
-            setIsHomePortalOpen(false);
-            setIsAdminScreenOpen(true);
+            if (currentUser?.role === 'admin') {
+              setIsHomePortalOpen(false);
+              setIsAdminScreenOpen(true);
+            }
           }}
           onOpenManual={(role) => {
             setManualDefaultRole(role);
@@ -941,8 +955,11 @@ export default function App() {
           }}
           onSelectWebsite={(siteId) => {
             handleSelectWebsite(siteId);
-            setIsHomePortalOpen(false);
+            if (currentUser) {
+              setIsHomePortalOpen(false);
+            }
           }}
+          onLogout={handleLogout}
         />
         <DocumentationManualModal
           isOpen={isManualModalOpen}
@@ -1176,10 +1193,7 @@ export default function App() {
         onClose={() => setIsLoginModalOpen(false)}
         onLogin={handleVerifyLogin}
         onRegister={handleRegisterUser}
-        onLogout={() => {
-          recordAudit('user', 'user.logout', 'page', currentUser?.id || 'anonymous', 'User logged out.');
-          setCurrentUser(null);
-        }}
+        onLogout={handleLogout}
       />
 
       {/* Export Runnable Node.js Web Bundle Modal */}

@@ -270,46 +270,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               {/* TAB 1: SIGN IN */}
               {activeTab === 'login' && (
                 <div className="space-y-4">
-                  {/* Quick Login Presets */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">
-                      Quick Access Profiles
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleQuickLogin(true)}
-                        className="p-3 text-left rounded-xl border border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100/60 transition-all flex flex-col justify-between group"
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-bold text-indigo-950">Admin Sign In</span>
-                          <ShieldCheck className="w-4 h-4 text-indigo-600 group-hover:scale-110 transition-transform" />
-                        </div>
-                        <p className="text-[10px] text-zinc-500">Unlocks OneDrive & SQLite one-time connection setup.</p>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleQuickLogin(false)}
-                        className="p-3 text-left rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 transition-all flex flex-col justify-between group"
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-bold text-zinc-900">Builder Sign In</span>
-                          <User className="w-4 h-4 text-zinc-600 group-hover:scale-110 transition-transform" />
-                        </div>
-                        <p className="text-[10px] text-zinc-500">Visual canvas editing, pages creation & publishing.</p>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Divider */}
-                  <div className="relative flex items-center justify-center my-1">
-                    <div className="border-t border-zinc-200 w-full" />
-                    <span className="bg-white px-3 text-[10px] font-bold uppercase tracking-wider text-zinc-400 absolute">
-                      Or Sign in with credentials
-                    </span>
-                  </div>
-
                   {/* Manual Login Form */}
                   <form onSubmit={handleLoginSubmit} className="space-y-3">
                     {loginError && (

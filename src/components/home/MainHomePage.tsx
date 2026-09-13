@@ -5,6 +5,7 @@ import {
   Shield,
   User,
   LogIn,
+  LogOut,
   UserPlus,
   Lock,
   Globe,
@@ -20,6 +21,8 @@ import {
   Download,
   Menu as MenuIcon,
   ChevronRight,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 interface MainHomePageProps {
@@ -37,6 +40,7 @@ interface MainHomePageProps {
   onOpenUserManagement: () => void;
   onOpenManual: (role: 'admin' | 'user') => void;
   onSelectWebsite: (siteId: string) => void;
+  onLogout?: () => void;
 }
 
 export const MainHomePage: React.FC<MainHomePageProps> = ({
@@ -49,12 +53,14 @@ export const MainHomePage: React.FC<MainHomePageProps> = ({
   onOpenUserManagement,
   onOpenManual,
   onSelectWebsite,
+  onLogout,
 }) => {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
   // Form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [role, setRole] = useState<'admin' | 'editor' | 'viewer'>('editor');
   const [error, setError] = useState<string | null>(null);
@@ -182,17 +188,42 @@ export const MainHomePage: React.FC<MainHomePageProps> = ({
             </button>
           )}
 
-          {/* Enter Studio Button */}
+          {/* User Session or Sign In Prompt */}
           {currentUser ? (
-            <button
-              onClick={onEnterStudio}
-              className="flex items-center space-x-1.5 px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm shadow-indigo-600/25 transition-all"
-            >
-              <span>Open Studio</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center space-x-2 pl-2 border-l border-zinc-200">
+              <div className="flex items-center space-x-2 bg-zinc-100 px-2.5 py-1.5 rounded-xl">
+                <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-bold">
+                  {currentUser.name.charAt(0)}
+                </div>
+                <div className="text-left hidden md:block">
+                  <div className="text-xs font-bold leading-none text-zinc-900">{currentUser.name}</div>
+                  <div className="text-[10px] text-zinc-500 capitalize">{currentUser.role}</div>
+                </div>
+              </div>
+
+              <button
+                onClick={onEnterStudio}
+                className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm shadow-indigo-600/25 transition-all"
+              >
+                <span>Open Studio</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  title="Sign Out"
+                  className="p-1.5 rounded-xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors border border-transparent hover:border-rose-200"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           ) : (
-            <div className="text-xs text-zinc-400 font-medium">Please sign in below</div>
+            <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium">
+              <Lock className="w-3.5 h-3.5 text-amber-600" />
+              <span>Sign In Required</span>
+            </div>
           )}
         </div>
       </header>
@@ -263,43 +294,90 @@ export const MainHomePage: React.FC<MainHomePageProps> = ({
               </div>
             </div>
 
-            {/* Quick Demo Logins Pill */}
-            <div className="bg-zinc-100/80 p-4 rounded-2xl border border-zinc-200 space-y-2">
-              <div className="flex items-center justify-between text-xs text-zinc-500 font-semibold">
-                <span>One-Click Quick Sign-In Options:</span>
-                <span className="text-[11px] text-indigo-600">Instant Access</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => handleQuickLogin('admin@apexcloud.io')}
-                  className="px-3 py-1.5 rounded-xl bg-white border border-zinc-200 hover:border-purple-400 text-zinc-800 text-xs font-semibold shadow-2xs transition-all flex items-center gap-1.5"
-                >
-                  <Shield className="w-3.5 h-3.5 text-purple-600" />
-                  <span>System Admin (admin@apexcloud.io)</span>
-                </button>
-
-                <button
-                  onClick={() => handleQuickLogin('builder@apexcloud.io')}
-                  className="px-3 py-1.5 rounded-xl bg-white border border-zinc-200 hover:border-indigo-400 text-zinc-800 text-xs font-semibold shadow-2xs transition-all flex items-center gap-1.5"
-                >
-                  <User className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Alex Vance (builder@apexcloud.io)</span>
-                </button>
-
-                <button
-                  onClick={() => handleQuickLogin('kkrishnaitwork@gmail.com')}
-                  className="px-3 py-1.5 rounded-xl bg-white border border-zinc-200 hover:border-emerald-400 text-zinc-800 text-xs font-semibold shadow-2xs transition-all flex items-center gap-1.5"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Krishna (kkrishnaitwork@gmail.com)</span>
-                </button>
+            {/* Cryptographic Security Assurance Banner */}
+            <div className="bg-indigo-50/80 p-4 rounded-2xl border border-indigo-100 flex items-start space-x-3 text-xs text-indigo-900">
+              <Shield className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <div className="font-bold text-indigo-950">Zero-Knowledge Account Security</div>
+                <p className="text-[11px] text-indigo-800 leading-relaxed">
+                  Sign in with your registered administrator or developer credentials. Passwords are salted with a 128-bit
+                  CSPRNG salt and SHA-256 hashed before synchronizing to your OneDrive SQLite database (`canvas_store.sqlite`).
+                </p>
               </div>
             </div>
           </div>
 
           {/* Right Column: Authentication & Registration Card */}
           <div className="lg:col-span-5">
-            <div className="bg-white rounded-3xl border border-zinc-200 shadow-xl p-6 sm:p-8 space-y-6">
+            {currentUser ? (
+              /* Already Signed In Card */
+              <div className="bg-white rounded-3xl border border-zinc-200 shadow-xl p-6 sm:p-8 space-y-6">
+                <div className="text-center space-y-3">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white flex items-center justify-center font-bold text-2xl mx-auto shadow-md shadow-indigo-500/25">
+                    {currentUser.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-zinc-900">{currentUser.name}</h3>
+                    <p className="text-xs text-zinc-500">{currentUser.email}</p>
+                  </div>
+                  <div className="inline-block">
+                    <span
+                      className={`text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider ${
+                        currentUser.role === 'admin'
+                          ? 'bg-purple-100 text-purple-700 border border-purple-200'
+                          : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                      }`}
+                    >
+                      {currentUser.role === 'admin' ? 'Platform Administrator' : `${currentUser.role} Account`}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-zinc-50 rounded-2xl border border-zinc-200 space-y-2 text-xs text-zinc-600">
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-500">Access Level:</span>
+                    <span className="font-bold text-zinc-800">
+                      {currentUser.role === 'admin' ? 'All Websites & User Governance' : 'Granted Projects'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-500">Active Websites:</span>
+                    <span className="font-mono text-zinc-800 font-semibold">{websites.length} Available</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <button
+                    onClick={onEnterStudio}
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>Open Canvas Visual Studio</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+
+                  {currentUser.role === 'admin' && (
+                    <button
+                      onClick={onOpenUserManagement}
+                      className="w-full py-2.5 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-800 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <FolderLock className="w-4 h-4" />
+                      <span>Manage Users & Roles (Admin Console)</span>
+                    </button>
+                  )}
+
+                  {onLogout && (
+                    <button
+                      onClick={onLogout}
+                      className="w-full py-2.5 bg-zinc-100 hover:bg-rose-50 hover:text-rose-700 border border-zinc-200 text-zinc-700 font-semibold text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Sign Out & Switch Account</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-3xl border border-zinc-200 shadow-xl p-6 sm:p-8 space-y-6">
               {/* Card Header with Tabs */}
               <div>
                 <div className="flex items-center bg-zinc-100 p-1 rounded-xl mb-4 text-xs font-semibold">
@@ -389,14 +467,23 @@ export const MainHomePage: React.FC<MainHomePageProps> = ({
                       </span>
                     )}
                   </div>
-                  <input
-                    type="password"
-                    placeholder="Enter secure password..."
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-indigo-500 text-xs"
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Enter secure password..."
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-3.5 pr-10 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-indigo-500 text-xs"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 p-1"
+                    >
+                      {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
 
                   {/* Password strength meter for registration */}
                   {authMode === 'register' && password && (
@@ -438,7 +525,7 @@ export const MainHomePage: React.FC<MainHomePageProps> = ({
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                   >
                     {isLoading ? (
                       <span>Verifying & Syncing...</span>
@@ -466,6 +553,7 @@ export const MainHomePage: React.FC<MainHomePageProps> = ({
                 </span>
               </div>
             </div>
+            )}
           </div>
         </div>
 
@@ -480,13 +568,15 @@ export const MainHomePage: React.FC<MainHomePageProps> = ({
                 Each project maintains its own dedicated OneDrive folder, interconnected pages, and user grant access
               </p>
             </div>
-            <button
-              onClick={onEnterStudio}
-              className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
-            >
-              <span>View in Visual Builder</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+            {currentUser && (
+              <button
+                onClick={onEnterStudio}
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
+              >
+                <span>View in Visual Builder</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -494,6 +584,11 @@ export const MainHomePage: React.FC<MainHomePageProps> = ({
               <div
                 key={site.id}
                 onClick={() => {
+                  if (!currentUser) {
+                    setError('Please sign in or register above to open and edit website projects.');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    return;
+                  }
                   onSelectWebsite(site.id);
                   onEnterStudio();
                 }}
@@ -515,7 +610,9 @@ export const MainHomePage: React.FC<MainHomePageProps> = ({
 
                 <div className="pt-2 border-t border-zinc-100 flex items-center justify-between text-[11px] text-zinc-400 font-mono">
                   <span className="truncate max-w-[180px]">{site.oneDriveFolder || `/Apps/${site.id}/`}</span>
-                  <span className="text-indigo-600 font-semibold group-hover:underline">Open →</span>
+                  <span className="text-indigo-600 font-semibold group-hover:underline">
+                    {currentUser ? 'Open →' : 'Sign in to open'}
+                  </span>
                 </div>
               </div>
             ))}
