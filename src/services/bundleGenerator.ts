@@ -541,6 +541,18 @@ CREATE TABLE IF NOT EXISTS leads (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- User Credentials Vault (Passwords securely salted & hashed with SHA-256)
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  password_salt TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  last_login DATETIME
+);
+
 -- Seed initial website
 INSERT OR REPLACE INTO websites (id, name, domain, description)
 VALUES ('${website.id}', '${website.name.replace(/'/g, "''")}', '${website.domain}', '${website.description.replace(/'/g, "''")}');

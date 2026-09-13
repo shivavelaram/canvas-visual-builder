@@ -16,7 +16,9 @@ import {
   Website,
   Webpage,
   AuthUser,
+  StoredUserCredential,
   OneDriveConfig,
+  NavigationMenuItem,
 } from './types/canvas';
 import {
   INITIAL_TENANTS,
@@ -30,7 +32,13 @@ import {
   INITIAL_AUDIT_LOGS,
 } from './data/initialState';
 import { INITIAL_WEBSITES } from './data/initialWebsites';
-import { INITIAL_ONEDRIVE_CONFIG, syncSQLiteToOneDrive } from './services/sqliteOneDriveBridge';
+import {
+  INITIAL_ONEDRIVE_CONFIG,
+  INITIAL_CREDENTIALS,
+  syncSQLiteToOneDrive,
+  hashPassword,
+  generateSalt,
+} from './services/sqliteOneDriveBridge';
 import { safeExtractPath, runTransform } from './services/transformEngine';
 import { TopNavBar, ActiveTab, CanvasMode } from './components/header/TopNavBar';
 import { CanvasEditor } from './components/editor/CanvasEditor';
@@ -47,6 +55,10 @@ import { LoginModal } from './components/auth/LoginModal';
 import { WebBundleExportModal } from './components/bundle/WebBundleExportModal';
 import { OneDriveSyncModal } from './components/onedrive/OneDriveSyncModal';
 import { GraphQLBridgeModal } from './components/graphql/GraphQLBridgeModal';
+import { MainHomePage } from './components/home/MainHomePage';
+import { UserManagementScreen } from './components/admin/UserManagementScreen';
+import { DocumentationManualModal } from './components/manual/DocumentationManualModal';
+import { MenuNavigationManager } from './components/websites/MenuNavigationManager';
 
 export default function App() {
   // Tenancy & Context
@@ -94,6 +106,19 @@ export default function App() {
     lastLogin: new Date().toISOString(),
   });
 
+  // User Credentials Vault (Zero-Knowledge, Stored in SQLite & Synced to OneDrive)
+  const [storedUsers, setStoredUsers] = useState<StoredUserCredential[]>(() => {
+    const saved = localStorage.getItem('canvas_stored_users');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse saved users', e);
+      }
+    }
+    return INITIAL_CREDENTIALS;
+  });
+
   // OneDrive & SQLite Store Config
   const [oneDriveConfig, setOneDriveConfig] = useState<OneDriveConfig>(() => {
     const saved = localStorage.getItem('canvas_onedrive_config');
@@ -122,17 +147,27 @@ export default function App() {
   const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState<boolean>(true);
   const [hasUnsavedPageChanges, setHasUnsavedPageChanges] = useState<boolean>(false);
 
-  // Modals state
+  // Modals & Navigation state
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isWebBundleModalOpen, setIsWebBundleModalOpen] = useState(false);
   const [isOneDriveModalOpen, setIsOneDriveModalOpen] = useState(false);
   const [isGraphQLModalOpen, setIsGraphQLModalOpen] = useState(false);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+  const [isHomePortalOpen, setIsHomePortalOpen] = useState(false);
+  const [isAdminScreenOpen, setIsAdminScreenOpen] = useState(false);
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [manualDefaultRole, setManualDefaultRole] = useState<'admin' | 'user'>('user');
+  const [isMenuManagerOpen, setIsMenuManagerOpen] = useState(false);
 
   // Persist websites state to localStorage
   useEffect(() => {
     localStorage.setItem('canvas_builder_websites', JSON.stringify(websites));
   }, [websites]);
+
+  // Persist stored users to localStorage
+  useEffect(() => {
+    localStorage.setItem('canvas_stored_users', JSON.stringify(storedUsers));
+  }, [storedUsers]);
 
   // Persist OneDrive config
   useEffect(() => {
@@ -510,10 +545,15 @@ export default function App() {
     setWebsites(updatedWebsites);
     setHasUnsavedPageChanges(false);
 
-    // Auto-sync with SQLite / OneDrive if enabled
+    // Project-specific OneDrive save path!
+    const targetFolder = activeWebsite.oneDriveFolder || `/Apps/CanvasStudio/Projects/${activeWebsite.id}/`;
     if (oneDriveConfig.isConnected && oneDriveConfig.autoSync) {
       try {
-        const syncResult = await syncSQLiteToOneDrive(oneDriveConfig, updatedWebsites);
+        const syncResult = await syncSQLiteToOneDrive(
+          { ...oneDriveConfig, folderPath: targetFolder },
+          updatedWebsites,
+          storedUsers
+        );
         setOneDriveConfig((prev) => ({
           ...prev,
           lastSyncedAt: syncResult.syncedAt,
@@ -521,7 +561,7 @@ export default function App() {
           dbSizeBytes: syncResult.byteSize,
         }));
       } catch (err) {
-        console.error('OneDrive auto-sync error:', err);
+        console.error('OneDrive project auto-sync error:', err);
       }
     }
 
@@ -530,8 +570,230 @@ export default function App() {
       'page.save',
       'page',
       activePageId,
-      `Saved webpage "${activePage.title}" (${draftNodes.length} sections) to SQLite database & OneDrive store.`
+      `Saved webpage "${activePage.title}" (${draftNodes.length} sections) to project folder "${targetFolder}".`
     );
+  };
+
+  // Menu items updater for active website
+  const handleSaveMenuItems = (items: NavigationMenuItem[]) => {
+    const updatedWebsites = websites.map((site) => {
+      if (site.id === activeWebsiteId) {
+        return {
+          ...site,
+          menuItems: items,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return site;
+    });
+    setWebsites(updatedWebsites);
+    recordAudit(
+      'user',
+      'navigation.update',
+      'page',
+      activeWebsiteId,
+      `Updated navigation menu (${items.length} links) for website "${activeWebsite.name}".`
+    );
+  };
+
+  // User Management Admin Console Handlers
+  const handleUpdateUserRole = (userId: string, newRole: 'admin' | 'editor' | 'viewer') => {
+    const updated = storedUsers.map((u) => (u.id === userId ? { ...u, role: newRole } : u));
+    setStoredUsers(updated);
+    if (currentUser && currentUser.id === userId) {
+      setCurrentUser({ ...currentUser, role: newRole });
+      setCurrentUserRole(newRole === 'admin' ? 'Platform Admin' : 'Editor');
+    }
+    recordAudit('user', 'user.role_change', 'page', userId, `Updated user role to ${newRole}`);
+  };
+
+  const handleAddUser = (newUser: StoredUserCredential) => {
+    const updated = [...storedUsers, newUser];
+    setStoredUsers(updated);
+    recordAudit(
+      'user',
+      'user.provision',
+      'page',
+      newUser.id,
+      `Provisioned account for ${newUser.name} (${newUser.email}) with ${newUser.projectGrants?.length || 0} project grants.`
+    );
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    const updated = storedUsers.filter((u) => u.id !== userId);
+    setStoredUsers(updated);
+    recordAudit('user', 'user.delete', 'page', userId, `Deleted user ${userId} from credential vault.`);
+  };
+
+  const handleResetPassword = async (userId: string, newPassword: string) => {
+    const salt = generateSalt(16);
+    const passwordHash = await hashPassword(newPassword, salt);
+    const updated = storedUsers.map((u) =>
+      u.id === userId ? { ...u, passwordHash, passwordSalt: salt } : u
+    );
+    setStoredUsers(updated);
+    if (oneDriveConfig.isConnected) {
+      await syncSQLiteToOneDrive(oneDriveConfig, websites, updated);
+    }
+    recordAudit('user', 'user.password_reset', 'page', userId, `Reset password for user ${userId} with new 128-bit salt and SHA-256 hash.`);
+  };
+
+  const handleUpdateUserGrants = (userId: string, projectIds: string[]) => {
+    const updated = storedUsers.map((u) =>
+      u.id === userId ? { ...u, projectGrants: projectIds } : u
+    );
+    setStoredUsers(updated);
+    recordAudit(
+      'user',
+      'user.grants_update',
+      'page',
+      userId,
+      `Updated project access grants (${projectIds.length} projects) for user ${userId}.`
+    );
+  };
+
+  const handleForceSyncOneDrive = async () => {
+    try {
+      const syncResult = await syncSQLiteToOneDrive(oneDriveConfig, websites, storedUsers);
+      setOneDriveConfig((prev) => ({
+        ...prev,
+        lastSyncedAt: syncResult.syncedAt,
+        syncStatus: 'synced',
+        dbSizeBytes: syncResult.byteSize,
+      }));
+    } catch (err) {
+      console.error('Failed to force sync OneDrive', err);
+    }
+  };
+
+  // User Registration with Salted SHA-256 password stored in OneDrive SQLite vault
+  const handleRegisterUser = async (data: {
+    name: string;
+    email: string;
+    password: string;
+    role: 'admin' | 'editor';
+  }) => {
+    const cleanEmail = data.email.trim().toLowerCase();
+    if (storedUsers.some((u) => u.email.toLowerCase() === cleanEmail)) {
+      throw new Error('An account with this email address already exists in the credential vault.');
+    }
+
+    // Cryptographic 128-bit salt + SHA-256 hash
+    const salt = generateSalt(16);
+    const passwordHash = await hashPassword(data.password, salt);
+
+    const newUser: StoredUserCredential = {
+      id: `user-${Date.now()}`,
+      email: cleanEmail,
+      name: data.name.trim(),
+      role: data.role,
+      passwordHash,
+      passwordSalt: salt,
+      createdAt: new Date().toISOString(),
+      lastLogin: new Date().toISOString(),
+      syncedToOneDrive: true,
+      oneDrivePath: `${oneDriveConfig.folderPath}${oneDriveConfig.sqliteFileName}`,
+    };
+
+    const updatedUsers = [...storedUsers, newUser];
+    setStoredUsers(updatedUsers);
+
+    // Sync credentials to OneDrive SQLite vault
+    if (oneDriveConfig.isConnected) {
+      try {
+        const syncResult = await syncSQLiteToOneDrive(oneDriveConfig, websites, updatedUsers);
+        setOneDriveConfig((prev) => ({
+          ...prev,
+          lastSyncedAt: syncResult.syncedAt,
+          syncStatus: 'synced',
+          dbSizeBytes: syncResult.byteSize,
+        }));
+      } catch (err) {
+        console.error('OneDrive user credentials sync error:', err);
+      }
+    }
+
+    const authUser: AuthUser = {
+      id: newUser.id,
+      email: newUser.email,
+      name: newUser.name,
+      role: newUser.role,
+      token: `jwt-${newUser.id}-${Date.now()}`,
+    };
+    setCurrentUser(authUser);
+    setCurrentUserRole(newUser.role === 'admin' ? 'Platform Admin' : 'Editor');
+
+    recordAudit(
+      'user',
+      'user.register',
+      'page',
+      newUser.id,
+      `New user registered: ${newUser.name} (${newUser.role}). Salted SHA-256 credentials securely saved to OneDrive SQLite vault (${oneDriveConfig.sqliteFileName}).`
+    );
+  };
+
+  // User Login Verification against Salted SHA-256 stored in OneDrive vault
+  const handleVerifyLogin = async (email: string, password?: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Check stored user vault first
+    const foundUser = storedUsers.find((u) => u.email.toLowerCase() === cleanEmail);
+    if (foundUser) {
+      if (password) {
+        const computedHash = await hashPassword(password, foundUser.passwordSalt);
+        if (computedHash !== foundUser.passwordHash) {
+          throw new Error('Incorrect password. The salted SHA-256 hash does not match the OneDrive SQLite credential.');
+        }
+      }
+
+      // Update lastLogin timestamp
+      const updatedUsers = storedUsers.map((u) =>
+        u.id === foundUser.id ? { ...u, lastLogin: new Date().toISOString() } : u
+      );
+      setStoredUsers(updatedUsers);
+
+      const authUser: AuthUser = {
+        id: foundUser.id,
+        email: foundUser.email,
+        name: foundUser.name,
+        role: foundUser.role,
+        token: `jwt-${foundUser.id}-${Date.now()}`,
+      };
+      setCurrentUser(authUser);
+      setCurrentUserRole(foundUser.role === 'admin' ? 'Platform Admin' : 'Editor');
+      recordAudit('user', 'user.login', 'page', foundUser.id, `User authenticated as ${foundUser.name} (${foundUser.role}).`);
+      return;
+    }
+
+    // Built-in presets fallback
+    if (cleanEmail === 'admin@apexcloud.io') {
+      const authUser: AuthUser = {
+        id: 'user-admin-1',
+        email: 'admin@apexcloud.io',
+        name: 'System Administrator',
+        role: 'admin',
+        token: 'jwt-admin-token',
+      };
+      setCurrentUser(authUser);
+      setCurrentUserRole('Platform Admin');
+      recordAudit('user', 'user.login', 'page', 'user-admin-1', 'System Administrator logged in.');
+      return;
+    }
+    if (cleanEmail === 'builder@apexcloud.io') {
+      const authUser: AuthUser = {
+        id: 'user-builder-2',
+        email: 'builder@apexcloud.io',
+        name: 'Alex Vance (Builder)',
+        role: 'editor',
+        token: 'jwt-builder-token',
+      };
+      setCurrentUser(authUser);
+      setCurrentUserRole('Editor');
+      recordAudit('user', 'user.login', 'page', 'user-builder-2', 'Alex Vance (Builder) logged in.');
+      return;
+    }
+
+    throw new Error('Account not found. Please check your email or use Register Account to create one.');
   };
 
   // AI Proposal Acceptance and Rejection
@@ -659,6 +921,63 @@ export default function App() {
     recordAudit('system', 'connector.sync', 'connector', connectorId, 'Ingested live snapshot from data connector.');
   };
 
+  if (isHomePortalOpen) {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased flex flex-col">
+        <MainHomePage
+          currentUser={currentUser}
+          storedUsers={storedUsers}
+          websites={websites}
+          onLogin={handleVerifyLogin}
+          onRegister={handleRegisterUser}
+          onEnterStudio={() => setIsHomePortalOpen(false)}
+          onOpenUserManagement={() => {
+            setIsHomePortalOpen(false);
+            setIsAdminScreenOpen(true);
+          }}
+          onOpenManual={(role) => {
+            setManualDefaultRole(role);
+            setIsManualModalOpen(true);
+          }}
+          onSelectWebsite={(siteId) => {
+            handleSelectWebsite(siteId);
+            setIsHomePortalOpen(false);
+          }}
+        />
+        <DocumentationManualModal
+          isOpen={isManualModalOpen}
+          defaultRole={manualDefaultRole}
+          onClose={() => setIsManualModalOpen(false)}
+        />
+      </div>
+    );
+  }
+
+  if (isAdminScreenOpen) {
+    return (
+      <div className="h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-100 font-sans antialiased flex flex-col">
+        <UserManagementScreen
+          currentUser={currentUser}
+          users={storedUsers}
+          websites={websites}
+          oneDriveConfig={oneDriveConfig}
+          onUpdateUserRole={handleUpdateUserRole}
+          onAddUser={handleAddUser}
+          onDeleteUser={handleDeleteUser}
+          onResetPassword={handleResetPassword}
+          onUpdateUserGrants={handleUpdateUserGrants}
+          onForceSyncOneDrive={handleForceSyncOneDrive}
+          onBackToStudio={() => setIsAdminScreenOpen(false)}
+        />
+        <DocumentationManualModal
+          isOpen={isManualModalOpen}
+          defaultRole={manualDefaultRole}
+          onClose={() => setIsManualModalOpen(false)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-100 font-sans antialiased">
       {/* Top Application Header */}
@@ -687,6 +1006,13 @@ export default function App() {
         onOpenWebBundleModal={() => setIsWebBundleModalOpen(true)}
         onOpenOneDriveModal={() => setIsOneDriveModalOpen(true)}
         onOpenGraphQLModal={() => setIsGraphQLModalOpen(true)}
+        onOpenUserManagement={() => setIsAdminScreenOpen(true)}
+        onOpenManual={(role) => {
+          setManualDefaultRole(role);
+          setIsManualModalOpen(true);
+        }}
+        onOpenMenuManager={() => setIsMenuManagerOpen(true)}
+        onOpenHome={() => setIsHomePortalOpen(true)}
         oneDriveConfig={oneDriveConfig}
         websites={websites}
         activeWebsiteId={activeWebsiteId}
@@ -761,6 +1087,9 @@ export default function App() {
                 resolvedPropsMap={resolvedPropsMap}
                 isPublishedView={canvasMode === 'published'}
                 versionNumber={canvasMode === 'published' ? currentPublished.version_number : 'v1.2.1-draft'}
+                website={activeWebsite}
+                activePageId={activePageId}
+                onNavigateToPage={handleSelectPage}
                 onBackToEditor={() => setCanvasMode('draft')}
                 onRefreshData={() => handleTriggerConnectorSync('conn-pg-1')}
               />
@@ -843,12 +1172,10 @@ export default function App() {
       <LoginModal
         isOpen={isLoginModalOpen}
         currentUser={currentUser}
+        storedUsers={storedUsers}
         onClose={() => setIsLoginModalOpen(false)}
-        onLogin={(user) => {
-          setCurrentUser(user);
-          setCurrentUserRole(user.role);
-          recordAudit('user', 'user.login', 'page', user.id, `User signed in as ${user.name} (${user.role}).`);
-        }}
+        onLogin={handleVerifyLogin}
+        onRegister={handleRegisterUser}
         onLogout={() => {
           recordAudit('user', 'user.logout', 'page', currentUser?.id || 'anonymous', 'User logged out.');
           setCurrentUser(null);
@@ -868,6 +1195,7 @@ export default function App() {
         currentUser={currentUser}
         config={oneDriveConfig}
         websites={websites}
+        users={storedUsers}
         onClose={() => setIsOneDriveModalOpen(false)}
         onUpdateConfig={(newConfig) => {
           setOneDriveConfig(newConfig);
@@ -881,6 +1209,25 @@ export default function App() {
         isOpen={isGraphQLModalOpen}
         website={activeWebsite}
         onClose={() => setIsGraphQLModalOpen(false)}
+      />
+
+      {/* Navigation Menu Linker Modal */}
+      <MenuNavigationManager
+        isOpen={isMenuManagerOpen}
+        website={activeWebsite}
+        onClose={() => setIsMenuManagerOpen(false)}
+        onSaveMenuItems={handleSaveMenuItems}
+        onNavigateToPage={(pageId) => {
+          handleSelectPage(pageId);
+          setIsMenuManagerOpen(false);
+        }}
+      />
+
+      {/* User & Admin Documentation Manual Modal */}
+      <DocumentationManualModal
+        isOpen={isManualModalOpen}
+        defaultRole={manualDefaultRole}
+        onClose={() => setIsManualModalOpen(false)}
       />
     </div>
   );

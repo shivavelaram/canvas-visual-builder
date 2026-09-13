@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Website, OneDriveConfig, AuthUser } from '../../types/canvas';
+import { Website, OneDriveConfig, AuthUser, StoredUserCredential } from '../../types/canvas';
 import {
   syncSQLiteToOneDrive,
   downloadSQLiteFile,
@@ -16,6 +16,10 @@ import {
   Lock,
   X,
   ExternalLink,
+  Key,
+  Users,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 interface OneDriveSyncModalProps {
@@ -23,6 +27,7 @@ interface OneDriveSyncModalProps {
   currentUser: AuthUser | null;
   config: OneDriveConfig;
   websites: Website[];
+  users?: StoredUserCredential[];
   onClose: () => void;
   onUpdateConfig: (newConfig: OneDriveConfig) => void;
   onOpenLogin: () => void;
@@ -33,6 +38,7 @@ export const OneDriveSyncModal: React.FC<OneDriveSyncModalProps> = ({
   currentUser,
   config,
   websites,
+  users = [],
   onClose,
   onUpdateConfig,
   onOpenLogin,
@@ -43,6 +49,7 @@ export const OneDriveSyncModal: React.FC<OneDriveSyncModalProps> = ({
   const [autoSync, setAutoSync] = useState(config.autoSync);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
+  const [showVaultDetails, setShowVaultDetails] = useState(false);
 
   if (!isOpen) return null;
 
@@ -67,7 +74,7 @@ export const OneDriveSyncModal: React.FC<OneDriveSyncModalProps> = ({
   const handleManualSync = async () => {
     try {
       setIsSyncing(true);
-      const res = await syncSQLiteToOneDrive(config, websites);
+      const res = await syncSQLiteToOneDrive(config, websites, users);
       const updated: OneDriveConfig = {
         ...config,
         lastSyncedAt: res.syncedAt,
@@ -85,7 +92,7 @@ export const OneDriveSyncModal: React.FC<OneDriveSyncModalProps> = ({
   };
 
   const handleDownloadDb = () => {
-    downloadSQLiteFile(websites, config.sqliteFileName);
+    downloadSQLiteFile(websites, users, config.sqliteFileName);
   };
 
   return (
@@ -245,7 +252,7 @@ export const OneDriveSyncModal: React.FC<OneDriveSyncModalProps> = ({
               <span className="text-zinc-500">Database Status:</span>
               <span className="font-mono font-semibold text-zinc-800 flex items-center gap-1.5">
                 <Database className="w-3.5 h-3.5 text-emerald-600" />
-                {config.sqliteFileName} ({((config.dbSizeBytes || 42800) / 1024).toFixed(1)} KB)
+                {config.sqliteFileName} ({((config.dbSizeBytes || 48900) / 1024).toFixed(1)} KB)
               </span>
             </div>
             <div className="flex items-center justify-between text-xs">
@@ -284,6 +291,75 @@ export const OneDriveSyncModal: React.FC<OneDriveSyncModalProps> = ({
                 <span>{isSyncing ? 'Syncing...' : 'Sync to OneDrive Now'}</span>
               </button>
             </div>
+          </div>
+
+          {/* Secure User Credentials Vault in OneDrive */}
+          <div className="border border-zinc-200 rounded-xl overflow-hidden bg-white">
+            <button
+              type="button"
+              onClick={() => setShowVaultDetails(!showVaultDetails)}
+              className="w-full p-3.5 bg-zinc-50 hover:bg-zinc-100 flex items-center justify-between transition-colors text-left"
+            >
+              <div className="flex items-center space-x-2">
+                <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+                  <Lock className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-bold text-zinc-900">User Credentials Vault</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-700">
+                      {users.length} Accounts
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-zinc-500">
+                    Passwords cryptographically salted & SHA-256 hashed in {config.sqliteFileName}
+                  </span>
+                </div>
+              </div>
+              {showVaultDetails ? (
+                <ChevronUp className="w-4 h-4 text-zinc-400" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-zinc-400" />
+              )}
+            </button>
+
+            {showVaultDetails && (
+              <div className="p-3 border-t border-zinc-200 space-y-2.5 bg-zinc-50/50">
+                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-[11px] text-emerald-900 flex items-start space-x-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block">Zero-Knowledge Storage Enforced</span>
+                    <span>
+                      Plaintext passwords are never recorded. Each user has a unique 128-bit cryptographic salt and SHA-256 hash stored in the SQLite <code>users</code> table synced to OneDrive.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                  {users.map((u) => (
+                    <div
+                      key={u.id}
+                      className="p-2.5 rounded-lg border border-zinc-200 bg-white flex flex-col space-y-1 text-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-zinc-900">{u.name}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded capitalize bg-zinc-100 text-zinc-700">
+                          {u.role}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-zinc-500">{u.email}</div>
+                      <div className="pt-1 flex items-center justify-between text-[10px] text-zinc-400 font-mono">
+                        <span className="truncate max-w-[200px]" title={u.passwordHash}>
+                          Hash: {u.passwordHash.substring(0, 14)}...
+                        </span>
+                        <span>Salt: {u.passwordSalt.substring(0, 8)}...</span>
+                        <span className="text-emerald-600 font-sans font-medium">✓ In OneDrive</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

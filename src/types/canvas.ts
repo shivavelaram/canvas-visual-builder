@@ -183,6 +183,23 @@ export interface AuditRecord {
 // Multi-Website, Webpage & Persistence Types
 // -------------------------------------------------------------
 
+export interface NavigationMenuItem {
+  id: string;
+  label: string;
+  pageId?: string; // target webpage ID inside this website
+  slug?: string; // route slug (e.g. 'home', 'pricing', 'about', 'services', 'contact')
+  externalUrl?: string; // or external link
+  order: number;
+  isVisible: boolean;
+}
+
+export interface ProjectGrant {
+  userId: string;
+  userEmail: string;
+  role: 'owner' | 'editor' | 'viewer';
+  grantedAt: string;
+}
+
 export interface Webpage {
   id: string;
   websiteId: string;
@@ -199,11 +216,17 @@ export interface Website {
   name: string;
   domain: string;
   description: string;
-  category: 'saas' | 'portfolio' | 'ecommerce' | 'documentation';
+  category: 'saas' | 'portfolio' | 'ecommerce' | 'documentation' | 'corporate' | 'agency' | 'custom';
   pages: Webpage[];
   activePageId: string;
   createdAt: string;
   updatedAt: string;
+  // Project-specific OneDrive folder & access control
+  ownerId?: string;
+  ownerEmail?: string;
+  oneDriveFolder?: string; // e.g. "/Apps/CanvasStudio/Projects/apex-saas/"
+  grants?: ProjectGrant[]; // RBAC project grants
+  menuItems?: NavigationMenuItem[]; // Header & navigation menu items linking the pages
 }
 
 export interface AuthUser {
@@ -213,6 +236,20 @@ export interface AuthUser {
   role: 'admin' | 'editor' | 'viewer';
   avatarUrl?: string;
   token?: string;
+}
+
+export interface StoredUserCredential {
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'editor' | 'viewer';
+  passwordHash: string; // Cryptographic SHA-256 hash
+  passwordSalt: string; // Unique cryptographic salt per user
+  createdAt: string;
+  lastLogin?: string;
+  syncedToOneDrive: boolean;
+  oneDrivePath?: string;
+  projectGrants?: string[]; // IDs of websites the user has grant access to
 }
 
 export interface OneDriveConfig {
@@ -241,5 +278,6 @@ export interface WebBundleExportOptions {
   includeGraphQLServer: boolean;
   port: number;
   targetEnv: 'nodejs_standalone' | 'docker' | 'static_only';
+  bundleMode?: 'static_only' | 'dynamic_nodejs_sqlite' | 'dynamic_graphql_fullstack';
 }
 

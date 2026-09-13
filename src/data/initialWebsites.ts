@@ -11,6 +11,20 @@ export const INITIAL_WEBSITES: Website[] = [
     createdAt: '2025-01-15T08:00:00Z',
     updatedAt: '2025-02-01T12:00:00Z',
     activePageId: 'page-apex-home',
+    ownerId: 'user-admin-1',
+    ownerEmail: 'admin@apexcloud.io',
+    oneDriveFolder: '/Apps/CanvasStudio/Projects/apex-cloud-saas/',
+    grants: [
+      { userId: 'user-admin-1', userEmail: 'admin@apexcloud.io', role: 'owner', grantedAt: '2025-01-15T08:00:00Z' },
+      { userId: 'user-builder-2', userEmail: 'builder@apexcloud.io', role: 'editor', grantedAt: '2025-01-16T09:00:00Z' },
+      { userId: 'user-krishna-3', userEmail: 'kkrishnaitwork@gmail.com', role: 'owner', grantedAt: '2025-01-17T10:00:00Z' },
+    ],
+    menuItems: [
+      { id: 'menu-home', label: 'Home', pageId: 'page-apex-home', slug: 'home', order: 1, isVisible: true },
+      { id: 'menu-pricing', label: 'Pricing & Plans', pageId: 'page-apex-pricing', slug: 'pricing', order: 2, isVisible: true },
+      { id: 'menu-features', label: 'Features & Edge', pageId: 'page-apex-features', slug: 'features', order: 3, isVisible: true },
+      { id: 'menu-contact', label: 'Contact', pageId: 'page-apex-contact', slug: 'contact', order: 4, isVisible: true },
+    ],
     pages: [
       {
         id: 'page-apex-home',
@@ -157,6 +171,18 @@ export const INITIAL_WEBSITES: Website[] = [
     createdAt: '2025-02-10T11:30:00Z',
     updatedAt: '2025-02-12T14:00:00Z',
     activePageId: 'page-nordic-home',
+    ownerId: 'user-admin-1',
+    ownerEmail: 'admin@apexcloud.io',
+    oneDriveFolder: '/Apps/CanvasStudio/Projects/nordic-fintech-labs/',
+    grants: [
+      { userId: 'user-admin-1', userEmail: 'admin@apexcloud.io', role: 'owner', grantedAt: '2025-02-10T11:30:00Z' },
+      { userId: 'user-builder-2', userEmail: 'builder@apexcloud.io', role: 'editor', grantedAt: '2025-02-11T12:00:00Z' },
+      { userId: 'user-krishna-3', userEmail: 'kkrishnaitwork@gmail.com', role: 'editor', grantedAt: '2025-02-12T10:00:00Z' },
+    ],
+    menuItems: [
+      { id: 'menu-nordic-home', label: 'Home', pageId: 'page-nordic-home', slug: 'home', order: 1, isVisible: true },
+      { id: 'menu-nordic-api', label: 'API Specs', externalUrl: '#specs', order: 2, isVisible: true },
+    ],
     pages: [
       {
         id: 'page-nordic-home',
@@ -202,6 +228,181 @@ export const INITIAL_WEBSITES: Website[] = [
             id: 'node-nordic-foot',
             componentId: 'website_footer',
             props: { brandName: 'Nordic Fintech Labs' },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'site-aura-commerce',
+    name: 'Aura Lifestyle Storefront',
+    domain: 'https://www.aurastore.io',
+    description: 'Modern direct-to-consumer e-commerce storefront with catalog, cart, and reviews.',
+    category: 'ecommerce',
+    createdAt: '2025-02-20T10:00:00Z',
+    updatedAt: '2025-02-24T16:00:00Z',
+    activePageId: 'page-aura-home',
+    ownerId: 'user-krishna-3',
+    ownerEmail: 'kkrishnaitwork@gmail.com',
+    oneDriveFolder: '/Apps/CanvasStudio/Projects/aura-lifestyle-store/',
+    grants: [
+      { userId: 'user-krishna-3', userEmail: 'kkrishnaitwork@gmail.com', role: 'owner', grantedAt: '2025-02-20T10:00:00Z' },
+      { userId: 'user-admin-1', userEmail: 'admin@apexcloud.io', role: 'owner', grantedAt: '2025-02-20T10:00:00Z' },
+      { userId: 'user-builder-2', userEmail: 'builder@apexcloud.io', role: 'editor', grantedAt: '2025-02-21T11:00:00Z' },
+    ],
+    menuItems: [
+      { id: 'menu-aura-home', label: 'Home', pageId: 'page-aura-home', slug: 'home', order: 1, isVisible: true },
+      { id: 'menu-aura-catalog', label: 'Catalog & Products', pageId: 'page-aura-catalog', slug: 'catalog', order: 2, isVisible: true },
+      { id: 'menu-aura-about', label: 'Our Story', pageId: 'page-aura-about', slug: 'about', order: 3, isVisible: true },
+      { id: 'menu-aura-contact', label: 'Customer Care', pageId: 'page-aura-contact', slug: 'contact', order: 4, isVisible: true },
+    ],
+    pages: [
+      {
+        id: 'page-aura-home',
+        websiteId: 'site-aura-commerce',
+        title: 'Home',
+        slug: 'home',
+        description: 'Flagship homepage with trending collections and seasonal promotions.',
+        updatedAt: '2025-02-24T16:00:00Z',
+        isPublished: true,
+        nodes: [
+          {
+            id: 'node-aura-nav-1',
+            componentId: 'website_navbar',
+            props: { brandName: 'Aura Lifestyle', ctaText: 'Shop New Arrivals' },
+          },
+          {
+            id: 'node-aura-hero-1',
+            componentId: 'hero_saas_section',
+            props: {
+              badgeText: '🌿 Autumn Sustainable Collection',
+              headline: 'Minimalist craftsmanship for mindful everyday living',
+              subheadline: 'Ethically sourced textiles, carbon-neutral fulfillment, and lifetime warranty.',
+              primaryCta: 'Explore Collection',
+              secondaryCta: 'Our Materials',
+            },
+          },
+          {
+            id: 'node-aura-feat-1',
+            componentId: 'feature_grid_saas',
+            props: {
+              sectionTitle: 'Sustainable design without compromise',
+              sectionSubtitle: 'Zero plastic packaging, closed-loop recycling, and verified fair trade wages.',
+            },
+          },
+          {
+            id: 'node-aura-cta-1',
+            componentId: 'cta_banner_saas',
+            props: {
+              headline: 'Get 15% off your first order when you join the Aura Circle',
+              buttonText: 'Join the Circle',
+            },
+          },
+          {
+            id: 'node-aura-foot-1',
+            componentId: 'website_footer',
+            props: { brandName: 'Aura Lifestyle Co.' },
+          },
+        ],
+      },
+      {
+        id: 'page-aura-catalog',
+        websiteId: 'site-aura-commerce',
+        title: 'Catalog & Products',
+        slug: 'catalog',
+        description: 'Complete product directory with category filters and instant checkout.',
+        updatedAt: '2025-02-23T14:00:00Z',
+        isPublished: true,
+        nodes: [
+          {
+            id: 'node-aura-nav-2',
+            componentId: 'website_navbar',
+            props: { brandName: 'Aura Lifestyle', ctaText: 'View Bag (0)' },
+          },
+          {
+            id: 'node-aura-hero-2',
+            componentId: 'hero_saas_section',
+            props: {
+              badgeText: '🛍️ Featured Catalog',
+              headline: 'Curated designs created for longevity and elegance',
+              subheadline: 'Browse handpicked ceramics, natural linen wear, and organic home fragrances.',
+              primaryCta: 'Filter by Category',
+              secondaryCta: 'Bestsellers',
+            },
+          },
+          {
+            id: 'node-aura-kpi-2',
+            componentId: 'kpi_metric_card',
+            props: { label: 'In-Stock Styles', value: '142 Products', change: '+24 This Week', positive: true },
+          },
+          {
+            id: 'node-aura-foot-2',
+            componentId: 'website_footer',
+            props: { brandName: 'Aura Lifestyle Co.' },
+          },
+        ],
+      },
+      {
+        id: 'page-aura-about',
+        websiteId: 'site-aura-commerce',
+        title: 'Our Story',
+        slug: 'about',
+        description: 'The founders, the philosophy, and our environmental commitment.',
+        updatedAt: '2025-02-22T10:00:00Z',
+        isPublished: true,
+        nodes: [
+          {
+            id: 'node-aura-nav-3',
+            componentId: 'website_navbar',
+            props: { brandName: 'Aura Lifestyle', ctaText: 'Visit Studio' },
+          },
+          {
+            id: 'node-aura-hero-3',
+            componentId: 'hero_saas_section',
+            props: {
+              badgeText: '📖 Certified B-Corp',
+              headline: 'Born from a belief that design should honor the earth',
+              subheadline: 'Founded in 2021 by a collective of industrial designers and organic farmers.',
+              primaryCta: 'Read Impact Report',
+              secondaryCta: 'Meet Artisans',
+            },
+          },
+          {
+            id: 'node-aura-foot-3',
+            componentId: 'website_footer',
+            props: { brandName: 'Aura Lifestyle Co.' },
+          },
+        ],
+      },
+      {
+        id: 'page-aura-contact',
+        websiteId: 'site-aura-commerce',
+        title: 'Customer Care',
+        slug: 'contact',
+        description: 'Customer service, sizing support, returns, and studio showroom visits.',
+        updatedAt: '2025-02-21T09:00:00Z',
+        isPublished: true,
+        nodes: [
+          {
+            id: 'node-aura-nav-4',
+            componentId: 'website_navbar',
+            props: { brandName: 'Aura Lifestyle', ctaText: 'Live Support' },
+          },
+          {
+            id: 'node-aura-hero-4',
+            componentId: 'hero_saas_section',
+            props: {
+              badgeText: '💬 We are here for you',
+              headline: 'How can our concierge team assist you today?',
+              subheadline: 'Prompt assistance for order inquiries, returns, styling advice, and trade partnerships.',
+              primaryCta: 'Start Live Chat',
+              secondaryCta: 'Track Package',
+            },
+          },
+          {
+            id: 'node-aura-foot-4',
+            componentId: 'website_footer',
+            props: { brandName: 'Aura Lifestyle Co.' },
           },
         ],
       },

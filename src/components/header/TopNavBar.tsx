@@ -19,6 +19,9 @@ import {
   ShieldCheck,
   LogIn,
   Download,
+  BookOpen,
+  Home,
+  Users,
 } from 'lucide-react';
 import { Tenant, Workspace, Environment, UserRole, Website, Webpage, AuthUser, OneDriveConfig } from '../../types/canvas';
 import { WebsitePageManager } from '../websites/WebsitePageManager';
@@ -60,6 +63,10 @@ interface TopNavBarProps {
   onOpenWebBundleModal: () => void;
   onOpenOneDriveModal: () => void;
   onOpenGraphQLModal: () => void;
+  onOpenUserManagement: () => void;
+  onOpenManual: (role: 'admin' | 'user') => void;
+  onOpenMenuManager: () => void;
+  onOpenHome: () => void;
   oneDriveConfig: OneDriveConfig;
   websites: Website[];
   activeWebsiteId: string;
@@ -97,6 +104,10 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
   onOpenWebBundleModal,
   onOpenOneDriveModal,
   onOpenGraphQLModal,
+  onOpenUserManagement,
+  onOpenManual,
+  onOpenMenuManager,
+  onOpenHome,
   oneDriveConfig,
   websites,
   activeWebsiteId,
@@ -115,25 +126,36 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
         {/* Left: Brand & Multi-Website / Page Navigation */}
         <div className="flex items-center space-x-3 overflow-x-auto scrollbar-none">
           <div className="flex items-center space-x-2.5 pr-3 border-r border-zinc-200 shrink-0">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center font-bold text-white shadow-sm shadow-indigo-500/25">
+            <button
+              onClick={onOpenHome}
+              title="Return to Home & Login Portal"
+              className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center font-bold text-white shadow-sm shadow-indigo-500/25 hover:opacity-90 transition-opacity"
+            >
               <Sparkles className="w-4 h-4 text-white" />
-            </div>
+            </button>
             <div className="hidden sm:block">
-              <span className="font-bold text-sm tracking-tight text-zinc-900">Canvas Studio</span>
+              <button
+                onClick={onOpenHome}
+                className="font-bold text-sm tracking-tight text-zinc-900 hover:text-indigo-600 transition-colors flex items-center gap-1.5"
+              >
+                <span>Canvas Studio</span>
+              </button>
             </div>
           </div>
 
-          {/* Website & Webpages Switcher */}
+          {/* Website & Webpages Switcher with Menu Linker */}
           <WebsitePageManager
             websites={websites}
             activeWebsiteId={activeWebsiteId}
             activePageId={activePageId}
             hasUnsavedChanges={hasUnsavedPageChanges}
+            currentUser={currentUser}
             onSelectWebsite={onSelectWebsite}
             onSelectPage={onSelectPage}
             onCreateWebsite={onCreateWebsite}
             onCreatePage={onCreatePage}
             onSaveCurrentPage={onSaveCurrentPage}
+            onOpenMenuManager={onOpenMenuManager}
           />
         </div>
 
@@ -182,8 +204,30 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
           </button>
         </div>
 
-        {/* Right side: Export Bundle, OneDrive Sync, GraphQL Bridge, Login & Publish */}
+        {/* Right side: Manual, Admin, Export Bundle, OneDrive Sync, GraphQL Bridge, Login & Publish */}
         <div className="flex items-center space-x-2 shrink-0">
+          {/* User / Admin Documentation Manual */}
+          <button
+            onClick={() => onOpenManual(currentUser?.role === 'admin' ? 'admin' : 'user')}
+            title="Open Website Creation & Administration Manual"
+            className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl border border-zinc-200 hover:bg-zinc-50 hover:border-zinc-300 text-zinc-700 text-xs font-semibold transition-all shadow-2xs"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+            <span className="hidden md:inline">Manual</span>
+          </button>
+
+          {/* Admin User Management Trigger (Visible if admin) */}
+          {currentUser && currentUser.role === 'admin' && (
+            <button
+              onClick={onOpenUserManagement}
+              title="Admin User Management: Manage users, salted SHA-256 passwords, and project access matrix"
+              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-800 text-xs font-bold transition-all shadow-2xs"
+            >
+              <Users className="w-3.5 h-3.5 text-purple-600" />
+              <span className="hidden lg:inline">User Admin</span>
+            </button>
+          )}
+
           {/* GraphQL Bridge Trigger */}
           <button
             onClick={onOpenGraphQLModal}
@@ -191,7 +235,7 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
             className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl border border-zinc-200 hover:bg-violet-50 hover:border-violet-300 text-zinc-700 hover:text-violet-700 text-xs font-semibold transition-all shadow-2xs"
           >
             <Zap className="w-3.5 h-3.5 text-violet-600" />
-            <span className="hidden md:inline">GraphQL Bridge</span>
+            <span className="hidden md:inline">GraphQL</span>
           </button>
 
           {/* OneDrive / SQLite Sync Trigger */}
@@ -268,4 +312,3 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
     </header>
   );
 };
-

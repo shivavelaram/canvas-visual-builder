@@ -84,6 +84,12 @@ export const WebBundleExportModal: React.FC<WebBundleExportModalProps> = ({
                 <span className="text-indigo-300 font-semibold">📁 public/</span>
                 <span className="text-zinc-500">{website.pages.length} compiled HTML files</span>
               </div>
+              <div className="flex items-center justify-between text-[11px] text-sky-300">
+                <span className="font-semibold">☁️ OneDrive Folder:</span>
+                <span className="font-mono text-zinc-400 truncate max-w-[240px]">
+                  {website.oneDriveFolder || `/Apps/CanvasStudio/Projects/${website.id}/`}
+                </span>
+              </div>
               {website.pages.map((p) => (
                 <div key={p.id} className="pl-4 text-[11px] text-zinc-400 flex items-center justify-between">
                   <span>📄 {p.slug === 'home' ? 'index.html' : `${p.slug}.html`}</span>

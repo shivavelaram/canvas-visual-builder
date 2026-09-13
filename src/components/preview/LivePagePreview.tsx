@@ -10,8 +10,11 @@ import {
   CheckCircle2,
   Lock,
   ExternalLink,
+  Menu as MenuIcon,
+  ChevronRight,
+  Layers,
 } from 'lucide-react';
-import { CanvasNode, ComponentDef } from '../../types/canvas';
+import { CanvasNode, ComponentDef, Website, NavigationMenuItem } from '../../types/canvas';
 import { ComponentNodeRenderer } from '../editor/ComponentNodeRenderer';
 
 interface LivePagePreviewProps {
@@ -20,6 +23,9 @@ interface LivePagePreviewProps {
   resolvedPropsMap: Record<string, Record<string, any>>;
   isPublishedView?: boolean;
   versionNumber: string;
+  website?: Website;
+  activePageId?: string;
+  onNavigateToPage?: (pageId: string) => void;
   onBackToEditor: () => void;
   onRefreshData: () => void;
 }
@@ -30,12 +36,30 @@ export const LivePagePreview: React.FC<LivePagePreviewProps> = ({
   resolvedPropsMap,
   isPublishedView = false,
   versionNumber,
+  website,
+  activePageId,
+  onNavigateToPage,
   onBackToEditor,
   onRefreshData,
 }) => {
   const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  const activePage = website?.pages.find((p) => p.id === activePageId) || website?.pages[0];
+
+  // Resolve menu items: custom menuItems or derived from pages
+  const menuItems: NavigationMenuItem[] =
+    website?.menuItems && website.menuItems.length > 0
+      ? website.menuItems.filter((it) => it.isVisible)
+      : (website?.pages || []).map((p, idx) => ({
+          id: `menu-${p.id}`,
+          label: p.title,
+          pageId: p.id,
+          slug: p.slug,
+          order: idx + 1,
+          isVisible: true,
+        }));
 
   const getWidth = () => {
     switch (viewport) {
@@ -61,6 +85,11 @@ export const LivePagePreview: React.FC<LivePagePreviewProps> = ({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
+  const currentPath = activePage?.slug === 'home' ? '' : activePage?.slug || '';
+  const currentUrl = website?.domain
+    ? `${website.domain.replace(/\/$/, '')}/${currentPath}`
+    : `https://www.apexcloud.io/${currentPath}`;
+
   return (
     <div className="flex-1 flex flex-col h-full bg-zinc-100/90 text-zinc-900 overflow-hidden">
       {/* Top Preview Bar */}
@@ -79,7 +108,7 @@ export const LivePagePreview: React.FC<LivePagePreviewProps> = ({
           <div className="flex items-center space-x-2">
             <Globe className={`w-3.5 h-3.5 ${isPublishedView ? 'text-emerald-600' : 'text-indigo-600'}`} />
             <span className="font-semibold text-zinc-800">
-              {isPublishedView ? 'Published Production Website' : 'Staged Live Preview'}
+              {website ? `${website.name} • ${activePage?.title || 'Home'}` : isPublishedView ? 'Published Production Website' : 'Staged Live Preview'}
             </span>
             <span className="font-mono text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-semibold border border-indigo-100">
               {versionNumber}
@@ -140,8 +169,8 @@ export const LivePagePreview: React.FC<LivePagePreviewProps> = ({
       {/* Render Surface */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 flex justify-center bg-zinc-100/70">
         <div className={`w-full ${getWidth()} bg-white rounded-2xl shadow-xl border border-zinc-200/90 overflow-hidden transition-all duration-200 min-h-[720px] flex flex-col`}>
-          {/* Top Browser Bar */}
-          <div className="h-9 bg-zinc-100 border-b border-zinc-200 px-3.5 flex items-center justify-between">
+          {/* Top Simulated Browser Navigation Bar */}
+          <div className="h-10 bg-zinc-100 border-b border-zinc-200 px-3.5 flex items-center justify-between">
             <div className="flex items-center space-x-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-rose-400" />
               <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
@@ -150,17 +179,60 @@ export const LivePagePreview: React.FC<LivePagePreviewProps> = ({
 
             <div className="px-4 py-1 rounded-md bg-white text-[11px] font-medium text-zinc-600 border border-zinc-200/80 flex items-center space-x-1.5 shadow-xs w-72 sm:w-96 justify-center">
               <Lock className="w-3 h-3 text-emerald-600 shrink-0" />
-              <span className="truncate">https://www.apexcloud.io</span>
+              <span className="truncate font-mono">{currentUrl}</span>
             </div>
 
-            <div className="w-10 flex justify-end">
+            <div className="flex items-center space-x-2">
               <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
                 Live Edge
               </span>
             </div>
           </div>
 
-          {/* Seamless SaaS Website Flow */}
+          {/* Interactive Linked Multi-Page Navigation Bar */}
+          {website && menuItems.length > 0 && (
+            <div className="bg-zinc-950 text-white px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between text-xs">
+              <div className="font-bold text-sm tracking-tight flex items-center gap-1.5 text-white">
+                <span className="text-indigo-400">⚡</span>
+                <span>{website.name}</span>
+              </div>
+
+              {/* Linked Page Navigation Links */}
+              <div className="flex items-center space-x-1 sm:space-x-3 overflow-x-auto">
+                {menuItems.map((item) => {
+                  const isActive = item.pageId === activePageId;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        if (item.pageId && onNavigateToPage) {
+                          onNavigateToPage(item.pageId);
+                        } else if (item.externalUrl) {
+                          window.open(item.externalUrl, '_blank');
+                        }
+                      }}
+                      className={`px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1 ${
+                        isActive
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'text-zinc-300 hover:text-white hover:bg-zinc-800/80'
+                      }`}
+                    >
+                      <span>{item.label}</span>
+                      {item.externalUrl && <ExternalLink className="w-2.5 h-2.5 text-zinc-400" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="hidden sm:flex items-center space-x-2">
+                <span className="text-[11px] text-zinc-400 font-mono">
+                  {activePage?.title} (/{activePage?.slug})
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Seamless Website Page Content Flow */}
           <div className="flex-1 bg-white flex flex-col">
             {nodes.map((node) => (
               <ComponentNodeRenderer
@@ -174,7 +246,7 @@ export const LivePagePreview: React.FC<LivePagePreviewProps> = ({
 
             {nodes.length === 0 && (
               <div className="text-center py-24 text-zinc-400 text-sm">
-                No sections added to this website.
+                No sections added to this website page.
               </div>
             )}
           </div>
