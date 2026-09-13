@@ -1,0 +1,6 @@
+{
+  "name": "Canvas Visual Builder",
+  "description": "A schema-driven, multi-tenant visual builder platform with governed data integration, deterministic transforms, versioned publishing, and human-in-the-loop AI assistance.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
